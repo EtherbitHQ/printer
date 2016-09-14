@@ -1,0 +1,23 @@
+card:
+ - type:          QR
+   text:          "%(address)s"
+   x:             7
+   y:             12
+   size:          16
+   eclevel:       M
+   caseSensitive: true
+ - type:          text
+   text:          "%(address)s"
+   x:             7
+   y:             40
+   font:          Courier
+   size:          8
+ - type:          textArray
+   text:          "%(keyphrase)s"
+   split:         " "
+   x:             33
+   y:             16
+   size:          8
+   columnSpacing: 15
+   rowSpacing:    3
+   columns:       3
