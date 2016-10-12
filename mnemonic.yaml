@@ -1,22 +1,23 @@
+address: "{{#wallet.derive.address}}m/44'/60'/0'/0/0{{/wallet.derive.address}}"
 card:
  - type:          QR
-   text:          "%(address)s"
-   x:             7
-   y:             12
+   text:          "{{address}}"
+   x:             8
+   y:             13.75
    size:          16
    eclevel:       M
    caseSensitive: true
  - type:          text
-   text:          "%(address)s"
+   text:          "{{address}}"
    x:             7
-   y:             40
+   y:             41.5
    font:          Courier
    size:          8
  - type:          textArray
-   text:          "%(keyphrase)s"
+   text:          "{{keyphrase}}"
    split:         " "
-   x:             33
-   y:             16
+   x:             34.75
+   y:             17.75
    size:          8
    columnSpacing: 15
    rowSpacing:    3

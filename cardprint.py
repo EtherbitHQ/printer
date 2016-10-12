@@ -1,10 +1,12 @@
 import argparse
+from bitmerchant.wallet import Wallet
 import cStringIO
 import cups
 import ethereum.keys
 from mnemonic import Mnemonic
 import os
 from PIL import Image
+import pystache
 from reportlab.pdfgen import canvas
 from reportlab.lib import units
 from reportlab.lib.utils import ImageReader
@@ -15,6 +17,49 @@ import yaml
 
 CARD_WIDTH = 54 * units.mm
 CARD_HEIGHT = 85 * units.mm
+
+
+def _addressFromWallet(wallet):
+    return to_checksum_address(ethereum.keys.sha3(wallet.public_key.get_key().decode('hex')[1:])[12:].encode('hex'))
+
+
+class BIPWallet(object):
+    @classmethod
+    def from_seed(cls, seed):
+        return cls(Wallet.from_master_secret(seed))
+
+    def __init__(self, wallet, derived=False):
+        self.wallet = wallet
+        self.derived = derived
+
+    @property
+    def derive(self):
+        return BIPWallet(self.wallet, True)
+
+    def address(self):
+        if self.derived:
+            def deriver(path):
+                return _addressFromWallet(self.wallet.get_child_for_path(path))
+            return deriver
+        else:
+            return _addressFromWallet(self.wallet)
+
+    def pubkey(self):
+        if self.derived:
+            def deriver(path):
+                return self.wallet.get_child_for_path(path).public_key.get_key()
+            return deriver
+        else:
+            return self.wallet.public_key.get_key()
+
+    def privkey(self):
+        if self.derived:
+            def deriver(path):
+                return self.wallet.get_child_for_path(path).private_key.get_key()
+            return deriver
+        else:
+            return self.wallet.private_key.get_key()
+
 
 mnemonic = Mnemonic('english')
 
@@ -37,15 +82,16 @@ class CardPrinter(object):
         self.format = format
 
     def _makeKeypair(self):
-        pdata = '\0' + os.urandom(15)
+        pdata = os.urandom(16)
+        pdata = chr(ord(pdata[0]) & 0x7F) + pdata[1:]
         words = mnemonic.to_mnemonic(pdata)
-        privkey = mnemonic.to_seed(words)[:32]
-        address = to_checksum_address(ethereum.keys.privtoaddr(privkey).encode('hex'))
+        seed = mnemonic.to_seed(words)
+        privkey = seed[:32]
+        address = ethereum.keys.privtoaddr(privkey).encode('hex')
 
         return {
             'keyphrase': words,
-            'private': privkey.encode('hex'),
-            'address': address,
+            'wallet': BIPWallet.from_seed(seed),
         }
 
     def generate(self, count):
@@ -57,8 +103,9 @@ class CardPrinter(object):
             c.rotate(90)
 
             context = self._makeKeypair()
+            context['address'] = pystache.render(self.format['address'], context)
             addresses.append(context['address'])
-            for element in self.format:
+            for element in self.format['card']:
                 self.FORMATTERS[element['type']](c, element, context)
 
             c.showPage()
@@ -77,7 +124,7 @@ def QR(c, element, context):
     }[element.get('eclevel', 'L')]
 
     version, pixels, qr = qrencode.encode(
-        element['text'] % context,
+        pystache.render(element['text'], context),
         0,
         eclevel,
         qrencode.QR_MODE_8,
@@ -108,12 +155,12 @@ def text(c, element, context):
         element,
         float(element['x']) * units.mm,
         -float(element['y']) * units.mm,
-        element['text'] % context)
+        pystache.render(element['text'], context))
 
 
 @CardPrinter.formatter
 def textArray(c, element, context):
-    data = (element['text'] % context).split(element['split'])
+    data = pystache.render(element['text'], context).split(element['split'])
     cols = int(element['columns'])
     startX = float(element['x']) * units.mm
     startY = -float(element['y']) * units.mm
@@ -134,7 +181,7 @@ def printCards(printerName, cards):
 
 def main(args):
     formatter = yaml.load(open(args.template))
-    generator = CardPrinter(formatter['card'])
+    generator = CardPrinter(formatter)
     addresses, cards = generator.generate(args.count)
     print '\n'.join(addresses)
     if args.test:
