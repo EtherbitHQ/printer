@@ -66,6 +66,7 @@ mnemonic = Mnemonic('english')
 parser = argparse.ArgumentParser(description='Generate and print ECDSA keypairs.')
 parser.add_argument('--printer', type=str, help='Printer name', default='EVOLIS_Primacy')
 parser.add_argument('--test', type=str, help='Run in test mode, outputting to the named file')
+parser.add_argument('--batchsize', type=int, help='Batch size for print jobs', default=None)
 parser.add_argument('template', metavar='FILENAME', type=str, help='Template file to use')
 parser.add_argument('count', metavar='COUNT', type=int, help='Number of cards to print')
 
@@ -182,12 +183,17 @@ def printCards(printerName, cards):
 def main(args):
     formatter = yaml.load(open(args.template))
     generator = CardPrinter(formatter)
-    addresses, cards = generator.generate(args.count)
-    print '\n'.join(addresses)
-    if args.test:
-        open(args.test, 'w').write(cards)
-    else:
-        printCards(args.printer, cards)
+
+    batchsize = args.batchsize or args.count
+    for i in range(0, args.count, batchsize):
+        count = min(batchsize, args.count - i)
+
+        addresses, cards = generator.generate(count)
+        print '\n'.join(addresses)
+        if args.test:
+            open(args.test, 'w').write(cards)
+        else:
+            printCards(args.printer, cards)
 
 
 if __name__ == '__main__':
