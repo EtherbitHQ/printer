@@ -1,5 +1,5 @@
 import argparse
-from sha3 import sha3_256
+from sha3 import keccak_256
 import sys
 from web3 import Web3, RPCProvider
 
@@ -40,7 +40,7 @@ def check_addresses(contract, addresses):
             yield address
 
 def make_hashes(addresses):
-    return [sha3_256(address.decode('hex')).digest()[:16] for address in addresses]
+    return [keccak_256(address.decode('hex')).digest()[:16] for address in addresses]
 
 
 def chunk(l, n):
