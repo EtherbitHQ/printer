@@ -10,7 +10,7 @@ import pystache
 from reportlab.pdfgen import canvas
 from reportlab.lib import units
 from reportlab.lib.utils import ImageReader
-from web3.utils.address import to_checksum_address
+from web3.main import to_checksum_address
 import qrencode
 import yaml
 
